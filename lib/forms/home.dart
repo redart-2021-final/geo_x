@@ -1,6 +1,11 @@
 import 'dart:async';
-
+import 'dart:convert';
+import 'package:geo_x/data/session_options.dart';
+import 'package:geo_x/data/static_variable.dart';
+import 'package:geo_x/data/users.dart';
+import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
+import 'package:geo_x/forms/account.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter/material.dart';
 import 'package:geo_x/directions_model.dart';
@@ -128,6 +133,7 @@ class _HomePageState extends State<HomePage> {
     });
     pageController.jumpToPage(index);
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -244,15 +250,40 @@ class _HomePageState extends State<HomePage> {
         unselectedItemColor: Colors.grey,
         onTap: onTapped,
       ),
+      bottomSheet: FutureBuilder(
+        builder: (BuildContext  context, AsyncSnapshot snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return CircularProgressIndicator();
+          } else if (snapshot.connectionState == ConnectionState.done) {
+            if (snapshot.hasError) {
+              return const Text('Error');
+            } else if (snapshot.hasData) {
+              return ListView.builder(
+                itemCount: snapshot.data.length,
+                itemBuilder: (context, index) {
+                  Users user_data = snapshot.data[index];
+                  return ListTile(
+                    title: Text(user_data.name),
+                  );
+                },
+              );
+            } else {
+              return const Text('Empty data');
+            }
+          } else {
+            return Text('State: ${snapshot.connectionState}');
+          }
+        },
+        future: getUsersForGroup(),
+      ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: Theme.of(context).primaryColor,
         foregroundColor: Colors.black,
-        onPressed: () => _googleMapController.animateCamera(
-          _info != null
-              ? CameraUpdate.newLatLngBounds(_info!.bounds, 100.0)
-              : CameraUpdate.newCameraPosition(_initialCameraPosition),
-        ),
-        child: const Icon(Icons.center_focus_strong),
+        onPressed: () {
+          Navigator.push(context,
+              MaterialPageRoute(builder: (context) => AccountPage()));
+        },
+        child: const Icon(Icons.add),
       ),
     );
   }
@@ -293,5 +324,31 @@ class _HomePageState extends State<HomePage> {
           .getDirections(origin: _origin!.position, destination: pos);
       setState(() => _info = directions);
     }
+  }
+
+  getUsersForGroup() async{
+    try {
+
+      var response = await http.get(
+          Uri.parse('${ServerUrl}/users/children'),
+          headers: {
+            'Authorization': 'Basic ${AuthorizationString}',
+
+          });
+      if (response.statusCode == 200) {
+        List data = json.decode(response.body);
+        return data
+            .map((data) => new Users.fromJson(data))
+            .toList();
+
+      } else {
+        print("Response status: ${response.statusCode}");
+        print("Response body: ${response.body}");
+        return null;
+      }
+    } catch (error) {
+      print(error.toString());
+      return null;
+    };
   }
 }

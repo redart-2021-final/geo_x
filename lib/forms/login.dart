@@ -185,8 +185,7 @@ class _LoginPageState extends State<LoginPage> {
               'Ошибка соединения с сервером',
               style: new TextStyle(fontSize: 16.0),
             ));
-      }
-      ;
+      };
     } else {
       CreateshowDialog(
           context,

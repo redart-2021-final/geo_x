@@ -1,7 +1,6 @@
 class Users {
   String name;
-  int battery;
-  double latitude, longitude, accuracy;
+  double latitude, longitude, accuracy, battery;
   Users({required this.name, required this.battery, required this.latitude, required this.longitude, required this.accuracy});
 
   factory Users.fromJson(Map<String, dynamic> jsonData) {

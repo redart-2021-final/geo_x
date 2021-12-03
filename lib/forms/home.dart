@@ -277,7 +277,16 @@ class _HomePageState extends State<HomePage> {
                 ),
             ],
           ),
-          Text('test')
+          ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                  primary: Colors.white,
+                  side: BorderSide(width: 0.5, color: Colors.black,)
+              ),
+              onPressed: () {
+
+              },
+
+              child: Text('Вызвать помощь')),
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(

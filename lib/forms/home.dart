@@ -82,14 +82,14 @@ class _HomePageState extends State<HomePage> {
     if (defaultTargetPlatform == TargetPlatform.android) {
       locationSettings = AndroidSettings(
         accuracy: LocationAccuracy.high,
-        distanceFilter: 100,
+        distanceFilter: 50,
         //forceLocationManager: true,
         intervalDuration: const Duration(seconds: 20),
       );
     } else {
       locationSettings = LocationSettings(
         accuracy: LocationAccuracy.high,
-        distanceFilter: 100,
+        distanceFilter: 50,
       );
     }
 

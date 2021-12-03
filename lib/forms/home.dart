@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:flutter/cupertino.dart';
 import 'package:geo_x/data/session_options.dart';
 import 'package:geo_x/data/static_variable.dart';
 import 'package:geo_x/data/users.dart';
@@ -25,24 +26,20 @@ class _HomePageState extends State<HomePage> {
     zoom: 11.5,
   );
 
-
   late GoogleMapController _googleMapController;
   Marker? _origin;
   Marker? _destination;
   Directions? _info;
 
-
   @override
   void initState() {
     // TODO: implement initState
     super.initState();
-    Future.wait([getInitialCameraPosition()])
-        .then((_) => setState(() {}));
+    Future.wait([getInitialCameraPosition()]).then((_) => setState(() {}));
     _getLocation();
   }
 
-  _getLocation(){
-
+  _getLocation() {
     late LocationSettings locationSettings;
     if (defaultTargetPlatform == TargetPlatform.android) {
       print('android');
@@ -59,11 +56,14 @@ class _HomePageState extends State<HomePage> {
       );
     }
 
-    Geolocator.getPositionStream(locationSettings: locationSettings).listen(
-            (Position position) {
-              print(position == null ? 'Unknown' : position.latitude.toString() + ', ' + position.longitude.toString());
-        });
-
+    Geolocator.getPositionStream(locationSettings: locationSettings)
+        .listen((Position position) {
+      print(position == null
+          ? 'Unknown'
+          : position.latitude.toString() +
+              ', ' +
+              position.longitude.toString());
+    });
   }
 
   @override
@@ -72,21 +72,21 @@ class _HomePageState extends State<HomePage> {
     super.dispose();
   }
 
-  Future<void> getInitialCameraPosition() async{
-    Position test  = await _determinePosition();
-    print('Точность '+test.accuracy.toString());
-    print('Высота '+test.altitude.toString());
-    print('Пол '+test.floor.toString());
-    print('Широта '+test.latitude.toString());
-    print('Долгота '+test.longitude.toString());
-    print('Скорость '+test.speed.toString());
-    print('Заголовок '+test.heading.toString());
+  Future<void> getInitialCameraPosition() async {
+    Position test = await _determinePosition();
+    print('Точность ' + test.accuracy.toString());
+    print('Высота ' + test.altitude.toString());
+    print('Пол ' + test.floor.toString());
+    print('Широта ' + test.latitude.toString());
+    print('Долгота ' + test.longitude.toString());
+    print('Скорость ' + test.speed.toString());
+    print('Заголовок ' + test.heading.toString());
 
     CameraPosition newPosition = CameraPosition(
       target: LatLng(test.latitude, test.longitude),
       zoom: 11.5,
     );
-    CameraUpdate update =CameraUpdate.newCameraPosition(newPosition);
+    CameraUpdate update = CameraUpdate.newCameraPosition(newPosition);
     _googleMapController.moveCamera(update);
   }
 
@@ -127,7 +127,7 @@ class _HomePageState extends State<HomePage> {
     return await Geolocator.getCurrentPosition();
   }
 
-  void onTapped(int index){
+  void onTapped(int index) {
     setState(() {
       _selectedIndex = index;
     });
@@ -243,7 +243,8 @@ class _HomePageState extends State<HomePage> {
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.access_alarms_outlined), label: 'Uvedom'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.access_alarms_outlined), label: 'Uvedom'),
         ],
         currentIndex: _selectedIndex,
         selectedItemColor: Colors.black,
@@ -251,22 +252,75 @@ class _HomePageState extends State<HomePage> {
         onTap: onTapped,
       ),
       bottomSheet: FutureBuilder(
-        builder: (BuildContext  context, AsyncSnapshot snapshot) {
+        builder: (BuildContext context, AsyncSnapshot snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return CircularProgressIndicator();
           } else if (snapshot.connectionState == ConnectionState.done) {
             if (snapshot.hasError) {
               return const Text('Error');
             } else if (snapshot.hasData) {
-              return ListView.builder(
-                itemCount: snapshot.data.length,
-                itemBuilder: (context, index) {
-                  Users user_data = snapshot.data[index];
-                  return ListTile(
-                    title: Text(user_data.name),
-                  );
-                },
-              );
+              return Container(
+
+                  color: Colors.transparent.withOpacity(0.1),
+                  //width: MediaQuery.of(context).size.width / 2,
+                  height: MediaQuery.of(context).size.height / 10,
+                  child: ListView.builder(
+
+                    //shrinkWrap: true,
+                    scrollDirection: Axis.horizontal,
+                    itemCount: snapshot.data.length,
+                    itemBuilder: (context, index) {
+                      Users user_data = snapshot.data[index];
+                      return Container(
+                          width: MediaQuery.of(context).size.width / 4,
+                          //height: MediaQuery.of(context).size.height / 10,
+                          child: ElevatedButton(
+                          onPressed: () {
+                            showDialog(
+                              context: context,
+                              barrierDismissible: false,
+                              builder: (BuildContext context) {
+                                return WillPopScope(
+                                    onWillPop: null,
+                                    child: new CupertinoAlertDialog(
+                                      actions: [
+                                        CupertinoDialogAction(
+                                            child: new Text("Закрыть"),
+                                            onPressed: () {
+                                              Navigator.pop(context);
+                                            })
+                                      ],
+                                      content: new Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          new Container(
+                                            child: new Text(
+                                              "Это не патрик, это " +
+                                                  user_data.name,
+                                              textAlign: TextAlign.center,
+                                              style:
+                                                  new TextStyle(fontSize: 16.0),
+                                            ),
+                                            margin: new EdgeInsets.fromLTRB(
+                                                10.0, 0.0, 10.0, 0.0),
+                                          ),
+                                        ],
+                                      ),
+                                    ));
+                              },
+                            );
+                          },
+                          child: Row(
+                            children: [
+                              Icon(Icons.pin_drop),
+                              Text(user_data.name)
+                            ],
+                          )));
+                      return ListTile(
+                        title: Text(user_data.name),
+                      );
+                    },
+                  ));
             } else {
               return const Text('Empty data');
             }
@@ -280,8 +334,8 @@ class _HomePageState extends State<HomePage> {
         backgroundColor: Theme.of(context).primaryColor,
         foregroundColor: Colors.black,
         onPressed: () {
-          Navigator.push(context,
-              MaterialPageRoute(builder: (context) => AccountPage()));
+          Navigator.push(
+              context, MaterialPageRoute(builder: (context) => AccountPage()));
         },
         child: const Icon(Icons.add),
       ),
@@ -298,7 +352,7 @@ class _HomePageState extends State<HomePage> {
           markerId: const MarkerId('origin'),
           infoWindow: const InfoWindow(title: 'Origin'),
           icon:
-          BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+              BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
           position: pos,
         );
         // Reset destination
@@ -326,21 +380,15 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  getUsersForGroup() async{
+  getUsersForGroup() async {
     try {
-
-      var response = await http.get(
-          Uri.parse('${ServerUrl}/users/children'),
-          headers: {
-            'Authorization': 'Basic ${AuthorizationString}',
-
-          });
+      var response =
+          await http.get(Uri.parse('${ServerUrl}/users/children'), headers: {
+        'Authorization': 'Basic ${AuthorizationString}',
+      });
       if (response.statusCode == 200) {
         List data = json.decode(response.body);
-        return data
-            .map((data) => new Users.fromJson(data))
-            .toList();
-
+        return data.map((data) => new Users.fromJson(data)).toList();
       } else {
         print("Response status: ${response.statusCode}");
         print("Response body: ${response.body}");
@@ -349,6 +397,7 @@ class _HomePageState extends State<HomePage> {
     } catch (error) {
       print(error.toString());
       return null;
-    };
+    }
+    ;
   }
 }

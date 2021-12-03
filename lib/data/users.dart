@@ -6,11 +6,11 @@ class Users {
   factory Users.fromJson(Map<String, dynamic> jsonData) {
 
     return Users(
-        name: jsonData['name'],
-        battery: jsonData['battery'],
-        latitude: jsonData['latitude'],
-        longitude: jsonData['longitude'],
-        accuracy: jsonData['accuracy'],
+        name: jsonData['username']?? 'none name',
+        battery: jsonData['battery']?? 0.0,
+        latitude: jsonData['latitude']?? 0.0,
+        longitude: jsonData['longitude']?? 0.0,
+        accuracy: jsonData['accuracy']?? 0.0,
     );
   }
 

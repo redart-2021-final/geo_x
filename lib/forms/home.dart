@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/cupertino.dart';
 import 'package:geo_x/data/session_options.dart';
@@ -11,8 +12,8 @@ import 'package:geo_x/forms/account.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter/material.dart';
 import 'package:geo_x/directions_model.dart';
-import 'package:geo_x/directions_repository.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class HomePage extends StatefulWidget {
   @override
@@ -23,22 +24,54 @@ class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
   PageController pageController = PageController();
   CameraPosition _initialCameraPosition = CameraPosition(
-    target: LatLng(37.773972, -122.431297),
+    target: LatLng(0, 0),
     zoom: 11.5,
   );
 
   late GoogleMapController _googleMapController;
-  Marker? _origin;
-  Marker? _destination;
   Directions? _info;
   List<Marker> _markers = <Marker>[];
+  List<Users> user_data_list = [];
+
+
+  late Timer _everySecond;
 
   @override
   void initState() {
     // TODO: implement initState
     super.initState();
-    Future.wait([getInitialCameraPosition()]).then((_) => setState(() {}));
+    Future.wait([getUsersForGroupList(),getInitialCameraPosition()]).then((_) => setState(() {}));
     _getLocation();
+
+    // defines a timer
+    _everySecond = Timer.periodic(Duration(seconds: 20), (Timer t) {
+      Future.wait([getUsersForGroupList()]).then((_) => setState(() {}));
+    });
+  }
+
+  Future<void> getUsersForGroupList() async {
+
+    try {
+      var response =
+      await http.get(Uri.parse('${ServerUrl}/users/children'), headers: {
+        'Authorization': 'Basic ${AuthorizationString}',
+      });
+      if (response.statusCode == 200) {
+        List data = json.decode(response.body);
+        user_data_list = data.map((data) => new Users.fromJson(data)).toList();
+
+        _markers.clear();
+        for(var map_data_el in user_data_list){
+          await _addMarker(map_data_el);
+        }
+      } else {
+        print("Response status: ${response.statusCode}");
+        print("Response body: ${response.body}");
+      }
+    } catch (error) {
+      print(error.toString());
+    }
+    ;
   }
 
   _getLocation() {
@@ -72,39 +105,55 @@ class _HomePageState extends State<HomePage> {
 
   postMessage(Position position) async{
 
-    // try {
-    //   var response = await http.post(
-    //       Uri.parse('${ServerUrl}/users/children'),
-    //       headers: {
-    //         'Authorization': 'Basic ${AuthorizationString}',
-    //         'content-type': 'application/json',
-    //       },
-    //       body: '{"username": "${username.text}", "password": "${password.text}"}');
-    //
-    //   if (response.statusCode >= 200 && response.statusCode < 300) {
-    //     Navigator.pop(context);
-    //
-    //   } else {
-    //     LoadingStop(context);
-    //     print("Response status: ${response.statusCode}");
-    //     print("Response body: ${response.body}");
-    //     CreateshowDialog(
-    //         context,
-    //         new Text(
-    //           response.body,
-    //           style: new TextStyle(fontSize: 16.0),
-    //         ));
-    //   }
-    // } catch (error) {
-    //   LoadingStop(context);
-    //   print(error.toString());
-    //   CreateshowDialog(
-    //       context,
-    //       new Text(
-    //         'Ошибка соединения с сервером',
-    //         style: new TextStyle(fontSize: 16.0),
-    //       ));
-    // };
+    var json_position = {
+      "timestamp": position.timestamp!.toIso8601String(),
+      "latitude": position.latitude,
+      "longitude": position.longitude,
+      "battery": 0,
+      "accuracy": position.accuracy,
+      "speed": position.speed
+    };
+
+    SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
+    List<String>? unsent_message = sharedPreferences.getStringList("unsent_message");
+    if(unsent_message==null) unsent_message = [];
+    unsent_message.add(json.encode(json_position));
+
+    print(unsent_message.toString());
+    try {
+      final result = await InternetAddress.lookup('example.com');
+      if (result.isNotEmpty && result[0].rawAddress.isNotEmpty) {
+
+        try {
+
+          var response = await http.post(
+              Uri.parse('${ServerUrl}/events'),
+              headers: {
+                'Authorization': 'Basic ${AuthorizationString}',
+                'content-type': 'application/json',
+              },
+              body: '{"events": ${unsent_message.toString()}}');
+
+          if (response.statusCode >= 200 && response.statusCode < 300) {
+            if(unsent_message!=null) sharedPreferences.remove("unsent_message");
+            print(unsent_message.toString());
+
+          } else {
+
+            print("Response status: ${response.statusCode}");
+            print("Response body: ${response.body}");
+
+          }
+        } catch (error) {
+          print(error.toString());
+
+        };
+
+      }
+    } on SocketException catch (_) {
+      sharedPreferences.setStringList("unsent_message", unsent_message);
+      print('not connected');
+    }
   }
 
   @override
@@ -115,13 +164,6 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> getInitialCameraPosition() async {
     Position test = await _determinePosition();
-    print('Точность ' + test.accuracy.toString());
-    print('Высота ' + test.altitude.toString());
-    print('Пол ' + test.floor.toString());
-    print('Широта ' + test.latitude.toString());
-    print('Долгота ' + test.longitude.toString());
-    print('Скорость ' + test.speed.toString());
-    print('Заголовок ' + test.heading.toString());
 
     CameraPosition newPosition = CameraPosition(
       target: LatLng(test.latitude, test.longitude),
@@ -244,24 +286,16 @@ class _HomePageState extends State<HomePage> {
         unselectedItemColor: Colors.grey,
         onTap: onTapped,
       ),
-      bottomSheet: _selectedIndex==0?FutureBuilder(
-        builder: (BuildContext context, AsyncSnapshot snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return CircularProgressIndicator();
-          } else if (snapshot.connectionState == ConnectionState.done) {
-            if (snapshot.hasError) {
-              return const Text('Error');
-            } else if (snapshot.hasData) {
-              return Container(
+      bottomSheet: _selectedIndex==0?Container(
                   //width: MediaQuery.of(context).size.width / 2,
                   height: MediaQuery.of(context).size.height / 10,
                   child: ListView.builder(
 
                     //shrinkWrap: true,
                     scrollDirection: Axis.horizontal,
-                    itemCount: snapshot.data.length,
+                    itemCount: user_data_list.length,
                     itemBuilder: (context, index) {
-                      Users user_data = snapshot.data[index];
+                      Users user_data = user_data_list[index];
                       print(user_data.color);
 
                       return Container(
@@ -292,16 +326,7 @@ class _HomePageState extends State<HomePage> {
                         title: Text(user_data.name),
                       );
                     },
-                  ));
-            } else {
-              return const Text('Empty data');
-            }
-          } else {
-            return Text('State: ${snapshot.connectionState}');
-          }
-        },
-        future: getUsersForGroup(),
-      ):null,
+                  )):null,
       floatingActionButton: FloatingActionButton(
         backgroundColor: Theme.of(context).primaryColor,
         foregroundColor: Colors.black,
@@ -314,8 +339,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  void _addMarker(Users user_data) async {
-    print('okk');
+  _addMarker(Users user_data) async {
     _markers.add(
         Marker(
           markerId: MarkerId(user_data.name),

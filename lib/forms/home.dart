@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:ui';
 import 'package:flutter/cupertino.dart';
 import 'package:geo_x/data/session_options.dart';
 import 'package:geo_x/data/static_variable.dart';
@@ -30,6 +31,7 @@ class _HomePageState extends State<HomePage> {
   Marker? _origin;
   Marker? _destination;
   Directions? _info;
+  List<Marker> _markers = <Marker>[];
 
   @override
   void initState() {
@@ -58,12 +60,51 @@ class _HomePageState extends State<HomePage> {
 
     Geolocator.getPositionStream(locationSettings: locationSettings)
         .listen((Position position) {
+
+      postMessage(position);
       print(position == null
           ? 'Unknown'
           : position.latitude.toString() +
               ', ' +
               position.longitude.toString());
     });
+  }
+
+  postMessage(Position position) async{
+
+    // try {
+    //   var response = await http.post(
+    //       Uri.parse('${ServerUrl}/users/children'),
+    //       headers: {
+    //         'Authorization': 'Basic ${AuthorizationString}',
+    //         'content-type': 'application/json',
+    //       },
+    //       body: '{"username": "${username.text}", "password": "${password.text}"}');
+    //
+    //   if (response.statusCode >= 200 && response.statusCode < 300) {
+    //     Navigator.pop(context);
+    //
+    //   } else {
+    //     LoadingStop(context);
+    //     print("Response status: ${response.statusCode}");
+    //     print("Response body: ${response.body}");
+    //     CreateshowDialog(
+    //         context,
+    //         new Text(
+    //           response.body,
+    //           style: new TextStyle(fontSize: 16.0),
+    //         ));
+    //   }
+    // } catch (error) {
+    //   LoadingStop(context);
+    //   print(error.toString());
+    //   CreateshowDialog(
+    //       context,
+    //       new Text(
+    //         'Ошибка соединения с сервером',
+    //         style: new TextStyle(fontSize: 16.0),
+    //       ));
+    // };
   }
 
   @override
@@ -97,9 +138,6 @@ class _HomePageState extends State<HomePage> {
     // Test if location services are enabled.
     serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
-      // Location services are not enabled don't continue
-      // accessing the position and request users of the
-      // App to enable the location services.
       return Future.error('Location services are disabled.');
     }
 
@@ -107,11 +145,6 @@ class _HomePageState extends State<HomePage> {
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
-        // Permissions are denied, next time you could try
-        // requesting permissions again (this is also where
-        // Android's shouldShowRequestPermissionRationale
-        // returned true. According to Android guidelines
-        // your App should show an explanatory UI now.
         return Future.error('Location permissions are denied');
       }
     }
@@ -140,42 +173,6 @@ class _HomePageState extends State<HomePage> {
       appBar: AppBar(
         centerTitle: false,
         title: const Text('GEO X'),
-        // actions: [
-        //   if (_origin != null)
-        //     TextButton(
-        //       onPressed: () => _googleMapController.animateCamera(
-        //         CameraUpdate.newCameraPosition(
-        //           CameraPosition(
-        //             target: _origin!.position,
-        //             zoom: 14.5,
-        //             tilt: 50.0,
-        //           ),
-        //         ),
-        //       ),
-        //       style: TextButton.styleFrom(
-        //         primary: Colors.green,
-        //         textStyle: const TextStyle(fontWeight: FontWeight.w600),
-        //       ),
-        //       child: const Text('ORIGIN'),
-        //     ),
-        //   if (_destination != null)
-        //     TextButton(
-        //       onPressed: () => _googleMapController.animateCamera(
-        //         CameraUpdate.newCameraPosition(
-        //           CameraPosition(
-        //             target: _destination!.position,
-        //             zoom: 14.5,
-        //             tilt: 50.0,
-        //           ),
-        //         ),
-        //       ),
-        //       style: TextButton.styleFrom(
-        //         primary: Colors.blue,
-        //         textStyle: const TextStyle(fontWeight: FontWeight.w600),
-        //       ),
-        //       child: const Text('DEST'),
-        //     )
-        // ],
       ),
       body: PageView(
         physics: NeverScrollableScrollPhysics(),
@@ -190,10 +187,7 @@ class _HomePageState extends State<HomePage> {
                 zoomControlsEnabled: false,
                 initialCameraPosition: _initialCameraPosition,
                 onMapCreated: (controller) => _googleMapController = controller,
-                markers: {
-                  if (_origin != null) _origin!,
-                  if (_destination != null) _destination!
-                },
+                markers: Set<Marker>.of(_markers),
                 polylines: {
                   if (_info != null)
                     Polyline(
@@ -205,7 +199,6 @@ class _HomePageState extends State<HomePage> {
                           .toList(),
                     ),
                 },
-                onLongPress: _addMarker,
               ),
               if (_info != null)
                 Positioned(
@@ -251,7 +244,7 @@ class _HomePageState extends State<HomePage> {
         unselectedItemColor: Colors.grey,
         onTap: onTapped,
       ),
-      bottomSheet: FutureBuilder(
+      bottomSheet: _selectedIndex==0?FutureBuilder(
         builder: (BuildContext context, AsyncSnapshot snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return CircularProgressIndicator();
@@ -260,8 +253,6 @@ class _HomePageState extends State<HomePage> {
               return const Text('Error');
             } else if (snapshot.hasData) {
               return Container(
-
-                  color: Colors.transparent.withOpacity(0.1),
                   //width: MediaQuery.of(context).size.width / 2,
                   height: MediaQuery.of(context).size.height / 10,
                   child: ListView.builder(
@@ -271,48 +262,29 @@ class _HomePageState extends State<HomePage> {
                     itemCount: snapshot.data.length,
                     itemBuilder: (context, index) {
                       Users user_data = snapshot.data[index];
+                      print(user_data.color);
+
                       return Container(
                           width: MediaQuery.of(context).size.width / 4,
                           //height: MediaQuery.of(context).size.height / 10,
                           child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                                primary: Colors.white,
+                                side: BorderSide(width: 0.5, color: Colors.black,)
+                              ),
                           onPressed: () {
-                            showDialog(
-                              context: context,
-                              barrierDismissible: false,
-                              builder: (BuildContext context) {
-                                return WillPopScope(
-                                    onWillPop: null,
-                                    child: new CupertinoAlertDialog(
-                                      actions: [
-                                        CupertinoDialogAction(
-                                            child: new Text("Закрыть"),
-                                            onPressed: () {
-                                              Navigator.pop(context);
-                                            })
-                                      ],
-                                      content: new Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          new Container(
-                                            child: new Text(
-                                              "Это не патрик, это " +
-                                                  user_data.name,
-                                              textAlign: TextAlign.center,
-                                              style:
-                                                  new TextStyle(fontSize: 16.0),
-                                            ),
-                                            margin: new EdgeInsets.fromLTRB(
-                                                10.0, 0.0, 10.0, 0.0),
-                                          ),
-                                        ],
-                                      ),
-                                    ));
-                              },
+
+                            CameraPosition newPosition = CameraPosition(
+                              target: LatLng(user_data.latitude, user_data.longitude),
+                              zoom: 11.5,
                             );
+                            CameraUpdate update = CameraUpdate.newCameraPosition(newPosition);
+                            _googleMapController.moveCamera(update);
+
                           },
                           child: Row(
                             children: [
-                              Icon(Icons.pin_drop),
+                              Icon(Icons.pin_drop, color: Color(int.parse('0xFF'+user_data.color))),
                               Text(user_data.name)
                             ],
                           )));
@@ -329,7 +301,7 @@ class _HomePageState extends State<HomePage> {
           }
         },
         future: getUsersForGroup(),
-      ),
+      ):null,
       floatingActionButton: FloatingActionButton(
         backgroundColor: Theme.of(context).primaryColor,
         foregroundColor: Colors.black,
@@ -342,42 +314,63 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  void _addMarker(LatLng pos) async {
+  void _addMarker(Users user_data) async {
     print('okk');
-    if (_origin == null || (_origin != null && _destination != null)) {
-      // Origin is not set OR Origin/Destination are both set
-      // Set origin
-      setState(() {
-        _origin = Marker(
-          markerId: const MarkerId('origin'),
-          infoWindow: const InfoWindow(title: 'Origin'),
-          icon:
-              BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
-          position: pos,
-        );
-        // Reset destination
-        _destination = null;
+    _markers.add(
+        Marker(
+          markerId: MarkerId(user_data.name),
+          infoWindow: InfoWindow(title: user_data.name),
+          icon: await getClusterMarker(
+            user_data.name,
+            Color(int.parse('0xFF'+user_data.color)),
+            Colors.white,
+            80,
+          ),
+          position: LatLng(user_data.latitude, user_data.longitude),
+        ));
 
-        // Reset info
-        _info = null;
-      });
-    } else {
-      // Origin is already set
-      // Set destination
-      setState(() {
-        _destination = Marker(
-          markerId: const MarkerId('destination'),
-          infoWindow: const InfoWindow(title: 'Destination'),
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
-          position: pos,
-        );
-      });
+  }
 
-      // Get directions
-      final directions = await DirectionsRepository()
-          .getDirections(origin: _origin!.position, destination: pos);
-      setState(() => _info = directions);
-    }
+  Future<BitmapDescriptor> getClusterMarker(
+      String text,
+      Color clusterColor,
+      Color textColor,
+      int width,
+      ) async {
+    final PictureRecorder pictureRecorder = PictureRecorder();
+    final Canvas canvas = Canvas(pictureRecorder);
+    final Paint paint = Paint()..color = clusterColor;
+    final TextPainter textPainter = TextPainter(
+      textDirection: TextDirection.ltr,
+    );
+    final double radius = width / 2;
+    canvas.drawCircle(
+      Offset(radius, radius),
+      radius,
+      paint,
+    );
+    textPainter.text = TextSpan(
+      text: text,
+      style: TextStyle(
+        fontSize: radius - 10,
+        fontWeight: FontWeight.bold,
+        color: textColor,
+      ),
+    );
+    textPainter.layout();
+    textPainter.paint(
+      canvas,
+      Offset(
+        radius - textPainter.width / 2,
+        radius - textPainter.height / 2,
+      ),
+    );
+    final image = await pictureRecorder.endRecording().toImage(
+      radius.toInt() * 2,
+      radius.toInt() * 2,
+    );
+    final data = await image.toByteData(format: ImageByteFormat.png);
+    return BitmapDescriptor.fromBytes(data!.buffer.asUint8List());
   }
 
   getUsersForGroup() async {
@@ -388,7 +381,15 @@ class _HomePageState extends State<HomePage> {
       });
       if (response.statusCode == 200) {
         List data = json.decode(response.body);
-        return data.map((data) => new Users.fromJson(data)).toList();
+        List map_data = data.map((data) => new Users.fromJson(data)).toList();
+
+        _markers.clear();
+          for(var map_data_el in map_data){
+            _addMarker(map_data_el);
+          }
+
+
+        return map_data;
       } else {
         print("Response status: ${response.statusCode}");
         print("Response body: ${response.body}");

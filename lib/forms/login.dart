@@ -8,7 +8,6 @@ import 'package:http/http.dart' as http;
 import 'package:geo_x/module_common.dart';
 import 'package:geo_x/data/static_variable.dart';
 import 'package:geo_x/data/session_options.dart';
-import 'package:geo_x/forms/registration.dart';
 
 
 class LoginPage extends StatefulWidget {
@@ -87,18 +86,6 @@ class _LoginPageState extends State<LoginPage> {
               onTap: LoginOnClick,
             ),
           ),
-          new Container(
-            decoration:
-                new BoxDecoration(border: Border.all(color: Colors.black)),
-            child: new ListTile(
-              title: new Text(
-                "Регистрация",
-                textAlign: TextAlign.center,
-              ),
-              onTap: RegistrationOnClick,
-            ),
-            margin: new EdgeInsets.only(top: 20.0),
-          )
         ],
       ),
     );
@@ -194,10 +181,6 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  RegistrationOnClick() async {
-    Navigator.push(
-        context, MaterialPageRoute(builder: (context) => RegistrationPage()));
-  }
 }
 
 class _SliderIndicatorPainter extends CustomPainter {

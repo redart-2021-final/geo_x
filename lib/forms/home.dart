@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:ui';
+import 'package:battery/battery.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:geo_x/data/session_options.dart';
 import 'package:geo_x/data/static_variable.dart';
@@ -40,11 +41,13 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     // TODO: implement initState
     super.initState();
+    print('11');
+
     Future.wait([getUsersForGroupList(),getInitialCameraPosition()]).then((_) => setState(() {}));
     _getLocation();
 
     // defines a timer
-    _everySecond = Timer.periodic(Duration(seconds: 20), (Timer t) {
+    _everySecond = Timer.periodic(Duration(seconds: 3), (Timer t) {
       Future.wait([getUsersForGroupList()]).then((_) => setState(() {}));
     });
   }
@@ -77,12 +80,11 @@ class _HomePageState extends State<HomePage> {
   _getLocation() {
     late LocationSettings locationSettings;
     if (defaultTargetPlatform == TargetPlatform.android) {
-      print('android');
       locationSettings = AndroidSettings(
         accuracy: LocationAccuracy.high,
         distanceFilter: 100,
         //forceLocationManager: true,
-        intervalDuration: const Duration(seconds: 30),
+        intervalDuration: const Duration(seconds: 20),
       );
     } else {
       locationSettings = LocationSettings(
@@ -104,12 +106,15 @@ class _HomePageState extends State<HomePage> {
   }
 
   postMessage(Position position) async{
+    print('postMessage');
+    Battery battery = Battery();
+    int batteryPercentage = await battery.batteryLevel;
 
     var json_position = {
       "timestamp": position.timestamp!.toIso8601String(),
       "latitude": position.latitude,
       "longitude": position.longitude,
-      "battery": 0,
+      "battery": batteryPercentage,
       "accuracy": position.accuracy,
       "speed": position.speed
     };
@@ -277,9 +282,9 @@ class _HomePageState extends State<HomePage> {
       ),
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Геолокация'),
           BottomNavigationBarItem(
-              icon: Icon(Icons.access_alarms_outlined), label: 'Uvedom'),
+              icon: Icon(Icons.access_alarms_outlined), label: 'Помощь'),
         ],
         currentIndex: _selectedIndex,
         selectedItemColor: Colors.black,
@@ -296,10 +301,8 @@ class _HomePageState extends State<HomePage> {
                     itemCount: user_data_list.length,
                     itemBuilder: (context, index) {
                       Users user_data = user_data_list[index];
-                      print(user_data.color);
-
                       return Container(
-                          width: MediaQuery.of(context).size.width / 4,
+                          width: MediaQuery.of(context).size.width / 2,
                           //height: MediaQuery.of(context).size.height / 10,
                           child: ElevatedButton(
                             style: ElevatedButton.styleFrom(
@@ -316,15 +319,13 @@ class _HomePageState extends State<HomePage> {
                             _googleMapController.moveCamera(update);
 
                           },
+
                           child: Row(
                             children: [
                               Icon(Icons.pin_drop, color: Color(int.parse('0xFF'+user_data.color))),
-                              Text(user_data.name)
+                              Text('${user_data.name} (${user_data.battery}%)')
                             ],
                           )));
-                      return ListTile(
-                        title: Text(user_data.name),
-                      );
                     },
                   )):null,
       floatingActionButton: FloatingActionButton(
@@ -348,7 +349,7 @@ class _HomePageState extends State<HomePage> {
             user_data.name,
             Color(int.parse('0xFF'+user_data.color)),
             Colors.white,
-            80,
+            100,
           ),
           position: LatLng(user_data.latitude, user_data.longitude),
         ));
